@@ -1,28 +1,24 @@
-# Base image with PHP
 FROM php:8.2-fpm
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    git unzip curl libpng-dev libonig-dev libxml2-dev zip nodejs npm
+# System deps
+RUN apt-get update && apt-get install -y git unzip curl libpng-dev libonig-dev libxml2-dev zip nodejs npm
 
-# Install Composer
+# Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+ENV COMPOSER_MEMORY_LIMIT=-1
 
-# Set working directory
 WORKDIR /var/www/html
 
-# Copy project files
+# Copy only composer files first to cache dependencies
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --optimize-autoloader --prefer-dist --no-interaction
+
+# Copy rest of the app
 COPY . .
 
-# Install PHP dependencies
-RUN composer install --no-interaction --optimize-autoloader
-
-# Install Node dependencies and build Vite assets
+# Node/Vite build
 RUN npm install
 RUN npm run build
 
-# Expose port
 EXPOSE 8000
-
-# Start Laravel server
 CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
